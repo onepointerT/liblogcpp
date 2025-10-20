@@ -1,3 +1,4 @@
 /.project
-/build/*
+/build*/*
 /pkg/arch/*
+/doc/xml

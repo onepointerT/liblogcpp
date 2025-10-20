@@ -1,22 +1,17 @@
 project(liblogcpp)
 
-cmake_minimum_required( VERSION 3.0 )
+cmake_minimum_required( VERSION 3.8 )
 
 set( LIBLOGCPP_STABLE_VERSION 1 )
 set( LIBLOGCPP_RELEASE 10 )
 set( LIBLOGCPP_PATCH_VERSION 1 )
 set( LIBLOGCPP_VERSION "${LIBLOGCPP_STABLE_VERSION}.${LIBLOGCPP_RELEASE}.${LIBLOGCPP_PATCH_VERSION}" )
 
-set( LIBLOGCPP_SRC_DIR ${PROJECT_SOURCE_DIR}/src )
-
 set ( PROJECT_NAME "${CMAKE_PROJECT_NAME}" )
 set ( PROJECT_VERSION "${LIBLOGCPP_VERSION}" )
 set ( PROJECT_DESCRIPTION "An intuitive and highly customizable LGPL library for logging with C++." )
 
-if( UNIX )
-	add_definitions( -std=c++17 )
-endif()
-add_definitions(-DLOGCPP_SRC_DIR=${LIBLOGCPP_SRC_DIR})
+set( CMAKE_CXX_STANDARD 17 )
 
 
 if( LOGCPP_DESTDIR )
@@ -24,34 +19,25 @@ else()
 	set( LOGCPP_DESTDIR "${CMAKE_INSTALL_PREFIX}" )
 endif()
 
-file (GLOB LIBLOGCPP_HEADERS ${LIBLOGCPP_SRC_DIR}/*.hpp )
-set ( LIBLOGCPP_SOURCE ${LIBLOGCPP_SRC_DIR}/basic_log_input.cpp ${LIBLOGCPP_SRC_DIR}/log.cpp ${LIBLOGCPP_SRC_DIR}/severity_default.cpp ${LIBLOGCPP_SRC_DIR}/severity_logger.cpp )
+file (GLOB LIBLOGCPP_HEADERS ${PROJECT_SOURCE_DIR}/include/*.hpp )
+file (GLOB LIBLOGCPP_SOURCE ${PROJECT_SOURCE_DIR}/src/*.cpp )
+include_directories( ${PROJECT_SOURCE_DIR}/include )
 
-## COLOR CODES ARE NOT WORKING ANYMORE
-#if( UNIX )
-#	set( LIBLOGCPP_SOURCE ${LIBLOGCPP_SOURCE} ${LIBLOGCPP_SRC_DIR}/color_feature.cpp )
-#	message("-- Compiling with support for ANSI Color codes")
-#    add_definitions( -DLOGCPP_AUTOCOLOR=1 )
-#else()
-#	list(REMOVE_ITEM ${LIBLOGCPP_HEADERS} "${LIBLOGCPP_SRC_DIR}/color_feature.hpp")
-#endif()
 
 if( LOGCPP_SHARED )
 	add_library( logcpp SHARED ${LIBLOGCPP_SOURCE} )
-	set( LOGCPP_PKGCONFIG_LIBNAME "liblogcpp.so" )
 else()
 	add_library( logcpp STATIC ${LIBLOGCPP_SOURCE} )
-	set( LOGCPP_PKGCONFIG_LIBNAME "liblogcpp.a" )
 endif()
 
 
 if( BUILD_LOGCPP_TEST )
     # Instruct CMake not to run moc automatically when needed.
-	set(CMAKE_AUTOMOC OFF)
+	# set(CMAKE_AUTOMOC OFF)
 	# Find the QtCore library
-	find_package(Qt5Core)
+	# find_package(Qt5Core)
 	# Build the test binary
-	add_executable( logcpp_test ${LIBLOGCPP_SRC_DIR}/main.cpp )
+	add_executable( logcpp_test ${PROJECT_SOURCE_DIR}/examples/main.cpp )
 	target_link_libraries( logcpp_test logcpp ${Qt5Core_LIBRARIES} )
 endif()
 
@@ -74,7 +60,7 @@ if( LOGCPP_INSTALL_LIBS )
 endif()
 
 
-if( UNIX AND ENABLE_DOC_LOGCPP )
+if( ENABLE_DOC_LOGCPP )
 	find_package(Doxygen)
 	if(DOXYGEN_FOUND)
 		message("-- Enabled doc_logcpp target for make")
