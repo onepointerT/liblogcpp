@@ -27,7 +27,9 @@
 
 #pragma once
 
+#include "logenv.hpp"
 #include "logregex.hpp"
+#include "source_location.hpp"
 
 #include <string>
 #include <utility>
@@ -35,16 +37,38 @@
 
 namespace logcpp {
 
+// Forward-declaration
+namespace env { class LogEnvironment; class Value; } // namespace env
 
+/**
+ * @brief If some log message or a record's prefix is inserted into the log,
+ * 		it can be quickly formatted with this class.
+ * 
+ */
 class LogFormat {
 public:
+	/** @brief The regex that thus determines what to log from a string inserted. */
 	regex::Regex& logrgx;
-	char* fmt;
-	bool fmt_nor_rgx;
+	/** 
+	 * @brief The formatter that thus is to be followed.
+	 * 		With use of a `LogEnvironment` this can be variables like `${filename}`,
+	 * 		whereby $#s inserts the string or logstream and $#sr inserts the regex-filtered
+	 * 		string or logstream. Further formats:
+	 * 	* `$#f` -- The filename
+	 *  * `$#l` -- The line number
+	 *  * `$#fn` -- The function name
+	 *  * `$#c` -- The column number
+	 */
+	std::string fmt;
+	/**
+	 * @brief 
+	 * 
+	 */
+	bool rgx_active;
 
 	LogFormat();
-	LogFormat( const char* fmt );
-	LogFormat( const std::string lrgx );
+	LogFormat( const char* fmt_vars_str );
+	LogFormat( const char* fmt_vars_str, const std::string lrgx = "*" );
 
 	typedef typename std::pair< std::string
 							  , std::regex_constants::syntax_option_type
@@ -54,11 +78,45 @@ public:
 	using LogInput = std::pair< std::string, logger_t >;
 
 
-	LogFormat& operator ^( const char* fmt );
+	LogFormat& operator ^( const char* fmt_vars_str );
 	LogFormat& operator ^( const RegexDefinitionT lrgx );
 
+	std::string formatAndReplace( const env::LogEnvironment& env
+								, const std::string logstream_or_fmtstr
+	) const;
+
 	template< class logger_t >
-	LogFormat& operator |( const LogInput<logger_t> input ) const;
+	const LogFormat& operator |( const LogInput<logger_t> input ) const {
+		std::string s_fmt = this->formatAndReplace(input.second.env, this->fmt);
+		
+		std::string s = s_fmt;
+		size_t pos = 0UL;
+		while ( s.find_first_of("$#s") != s.npos ) {
+			pos = s.find_first_of( "$#sr", pos );
+			if ( pos != s.npos ) {
+				typename regex::Regex::MatchResultsType& m = this->logrgx.searchIn(input.first);
+				if ( m.length() > 0 )
+					s = s.replace( pos, 4, m[0].str() );
+			} else {
+				pos = s.find_first_of( "$#s", pos );
+				if ( pos != s.npos )
+					s = s.replace( pos, 3, input.first );
+			}
+		}
+
+		pos = 0UL;
+		while ( pos = s.find_first_of( "$#f", pos ) != s.npos ) { s = s.replace( pos, 3, input.second.env["file"].value ); }
+		pos = 0UL;
+		while ( pos = s.find_first_of( "$#c", pos ) != s.npos ) { s = s.replace( pos, 3, input.second.env["column"].value ); }
+		pos = 0UL;
+		while ( pos = s.find_first_of( "$#fn", pos ) != s.npos ) { s = s.replace( pos, 4, input.second.env["func"].value ); }
+		pos = 0UL;
+		while ( pos = s.find_first_of( "$#l", pos ) != s.npos ) { s = s.replace( pos, 3, input.second.env["line"].value ); }
+
+		input.second << s;
+
+		return *this;
+	}
 };
 
 

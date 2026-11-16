@@ -1,17 +1,18 @@
-project(liblogcpp)
+
+project( liblogcpp LANGUAGES CXX )
 
 cmake_minimum_required( VERSION 3.20 )
 
 set( LIBLOGCPP_STABLE_VERSION 1 )
 set( LIBLOGCPP_RELEASE 11 )
-set( LIBLOGCPP_PATCH_VERSION 0-dev1 )
+set( LIBLOGCPP_PATCH_VERSION 0-dev2 )
 set( LIBLOGCPP_VERSION "${LIBLOGCPP_STABLE_VERSION}.${LIBLOGCPP_RELEASE}.${LIBLOGCPP_PATCH_VERSION}" )
 
 set ( PROJECT_NAME "${CMAKE_PROJECT_NAME}" )
 set ( PROJECT_VERSION "${LIBLOGCPP_VERSION}" )
 set ( PROJECT_DESCRIPTION "An intuitive and highly customizable LGPL library for logging with C++." )
 
-set( CMAKE_CXX_STANDARD 17 )
+set( CMAKE_CXX_STANDARD 23 )
 
 
 if( LOGCPP_DESTDIR )
@@ -38,7 +39,10 @@ if( BUILD_LOGCPP_TEST )
 	# find_package(Qt5Core)
 	# Build the test binary
 	add_executable( logcpp_test ${PROJECT_SOURCE_DIR}/examples/main.cpp )
-	target_link_libraries( logcpp_test logcpp ${Qt5Core_LIBRARIES} )
+	target_link_libraries( logcpp_test logcpp )
+
+	add_executable( logcpp_test2 ${PROJECT_SOURCE_DIR}/examples/main2.cpp )
+	target_link_libraries( logcpp_test2 logcpp )
 endif()
 
 if( LOGCPP_HEADER_INSTALL_DIR )
@@ -60,11 +64,9 @@ if( LOGCPP_INSTALL_LIBS )
 endif()
 
 
-if( ENABLE_DOC_LOGCPP )
-	find_package(Doxygen)
-	if(DOXYGEN_FOUND)
-		message("-- Enabled doc_logcpp target for make")
-		configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
-		add_custom_target(doc_logcpp ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generating documentation with Doxygen")
-	endif()
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+	message("-- Enabled doc_logcpp target for make")
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
+	add_custom_target(doc_logcpp ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generating documentation with Doxygen")
 endif()

@@ -34,6 +34,7 @@
 #include "logenv.hpp"
 #include "logstream.hpp"
 #include "logsurroundment.hpp"
+#include "source_location.hpp"
 
 
 #include <utility>
@@ -134,6 +135,12 @@ public:
 	 */
 	basic_log& operator =( const std::string msg );
 
+	/**
+	 * @brief Insert the current position of the source code and gather the information
+	 * 		about the source location.
+	 * 
+	 */
+	basic_log& operator <( const SourceLocation srcloc );
 	
 
 	/**

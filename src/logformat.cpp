@@ -1,6 +1,6 @@
 /**
- * @file logregex.cpp
- * @brief Functions needed by `logcpp::regex::*`
+ * @file logformat.cpp
+ * @brief Enable formatting of strings for the log library.
  * @author Sebastian Lau <lauseb644 [at] gmail [dot] com>
  **/
 /*
@@ -25,31 +25,60 @@
 	USA
 */
 
-#include "logregex.hpp"
+#include "logformat.hpp"
 
 
 namespace logcpp {
-namespace regex {
 
 
-Regex::Regex( const std::string rstr
-	 		, const std::regex_constants::syntax_option_type syntx_options
-	 		, const std::regex_constants::match_flag_type match_flag
-)	:	rgx_str( rstr )
-	,	rgx( rstr.c_str(), syntx_options )
-	,	syntx_opts( syntx_options )
-	,	match_flags( match_flag )
+LogFormat::LogFormat()
+	:	logrgx( *new regex::Regex( "" ) )
+	,	fmt("")
+	,	rgx_active( false )
 {}
 
-Regex::MatchResultsType& Regex::searchIn( const std::string sstr ) const {
-	std::cmatch& m = *new std::cmatch(); 
-	std::regex_match( sstr.c_str(), m, this->rgx, this->match_flags );
-	return m;
+LogFormat::LogFormat( const char* fmt_vars_str )
+	:	logrgx( *new regex::Regex( "" ) )
+	,	fmt( fmt_vars_str )
+	,	rgx_active( false )
+{}
+
+LogFormat::LogFormat( const char* fmt_vars_str, const std::string lrgx )
+	:	logrgx( *new regex::Regex( lrgx ) )
+	,	fmt( fmt_vars_str )
+	,	rgx_active( true )
+{}
+
+
+
+LogFormat& LogFormat::operator ^( const char* fmt_vars_str ) {
+	this->fmt = fmt_vars_str;
+	return *this;
 }
 
-const std::string Regex::replaceIn( const std::string rstr, const char* fmt ) const {
-	return std::regex_replace( rstr, this->rgx, fmt, this->match_flags );
+LogFormat& LogFormat::operator ^( const LogFormat::RegexDefinitionT lrgx ) {
+	this->logrgx = *new regex::Regex( lrgx.first, lrgx.second );
+	return *this;
 }
 
-} // namespace regex
+
+std::string LogFormat::formatAndReplace( const env::LogEnvironment& env
+									   , const std::string logstream_or_fmtstr
+) const {
+	std::string fmt_replace = logstream_or_fmtstr;
+	size_t pos = 0UL;
+	while ( pos = fmt_replace.find_first_of( "${", pos ) != fmt_replace.npos ) {
+		size_t pos_closing = fmt_replace.find_first_of( '}', pos );
+		if ( pos_closing == fmt_replace.npos ) continue;
+
+		std::string vname = fmt_replace.substr( pos+2, pos_closing - 1 - pos_closing + 2 );
+
+		env::Value& val = env.at(vname);
+		if ( ! val.empty() )
+			fmt_replace = fmt_replace.replace( pos, pos_closing-pos, val.value );
+	}
+
+	return fmt_replace;
+}
+
 } // namespace logcpp

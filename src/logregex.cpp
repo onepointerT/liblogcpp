@@ -36,7 +36,7 @@ Regex::Regex( const std::string rstr
 	 		, const std::regex_constants::syntax_option_type syntx_options
 	 		, const std::regex_constants::match_flag_type match_flag
 )	:	rgx_str( rstr )
-	,	rgx( rstr.c_str(), syntx_options )
+	,	rgx( *new std::regex(rstr.c_str(), syntx_options) )
 	,	syntx_opts( syntx_options )
 	,	match_flags( match_flag )
 {}
@@ -50,6 +50,16 @@ Regex::MatchResultsType& Regex::searchIn( const std::string sstr ) const {
 const std::string Regex::replaceIn( const std::string rstr, const char* fmt ) const {
 	return std::regex_replace( rstr, this->rgx, fmt, this->match_flags );
 }
+
+
+Regex& Regex::operator=( const Regex& other ) {
+	this->rgx_str = other.rgx_str;
+	this->rgx = *new std::regex( other.rgx );
+	this->syntx_opts = other.syntx_opts;
+	this->match_flags = other.match_flags;
+	return *this;
+}
+
 
 } // namespace regex
 } // namespace logcpp

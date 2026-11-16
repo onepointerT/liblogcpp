@@ -28,17 +28,17 @@
 #pragma once
 
 #include <regex>
+#include <string_view>
 
 namespace logcpp {
 namespace regex {
 
-class Regex
-{
+class Regex {
 public:
-    const std::string_view rgx_str;
-    const std::regex rgx;
-    const std::regex_constants::syntax_option_type syntx_opts;
-    const std::regex_constants::match_flag_type match_flags;
+    std::string_view rgx_str;
+    std::regex rgx;
+    std::regex_constants::syntax_option_type syntx_opts;
+    std::regex_constants::match_flag_type match_flags;
 
     Regex( const std::string rstr
          , const std::regex_constants::syntax_option_type syntx_options
@@ -52,6 +52,8 @@ public:
 
     MatchResultsType& searchIn( const std::string sstr ) const;
     const std::string replaceIn( const std::string rstr, const char* fmt ) const;
+
+	Regex& operator=( const Regex& other );
 };
 
 
