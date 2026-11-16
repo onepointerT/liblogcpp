@@ -30,7 +30,10 @@
 
 #include "config.hpp"
 
+#include "basic_log_input.hpp"
+#include "logenv.hpp"
 #include "logstream.hpp"
+#include "logsurroundment.hpp"
 
 
 #include <utility>
@@ -104,6 +107,34 @@ inline const std::string timestr() {
 class basic_log
 {
 public:
+	LogSurroundment& surroundment;
+	bool automatic_surroundment;
+	LogFormat& logfmt;
+	env::LogEnvironment& env;
+
+	/**
+	 * @brief Collect all variables needed for `LogFormat`
+	 * 
+	 * @param val 
+	 * @return basic_log& 
+	 */
+	basic_log& operator |( const env::Value val );
+	
+	/**
+	 * @brief Insert an message into the formatted logstream.
+	 * 
+	 * @param msg 
+	 * @return basic_log& 
+	 */
+	basic_log& operator ^( const std::string msg );
+
+	/**
+	 * @brief Format the current record with the prefix or the behind.
+	 * 
+	 */
+	basic_log& operator =( const std::string msg );
+
+	
 
 	/**
 	 * @brief Insert some function into this basic_log
@@ -123,6 +154,8 @@ public:
 		log<T>(t);
 		return *this;
 	}
+
+	basic_log_input& in;
 
 
 protected:
@@ -167,7 +200,12 @@ public:
 	 * @param outbuf A pointer to some std::streambuf where all content is logged to. Defaults to std::cout.rdbuf()
 	 */
 	explicit basic_log( std::streambuf* outbuf = std::cout.rdbuf() )
-	    :	stream( outbuf )
+	    :	surroundment( *new LogSurroundment() )
+		,	automatic_surroundment(false)
+		,	logfmt( *new LogFormat() )
+		,	env( *new env::LogEnvironment() )
+		,	in( *new basic_log_input(*this) )
+		,	stream( outbuf )
 	    ,	timestamp_enabled_(false)
 	    ,	new_record(true)
 #ifdef LOGCPP_ENABLE_COLOR_SUPPORT
@@ -260,6 +298,12 @@ public:
 		if( new_record ) insert_time_or_not();
 		stream << t;
 		new_record = false;
+	}
+
+	basic_log& operator<<( const scope_t scope ) {
+		this->env["file"]() = env::Value("file", scope.first);
+		this->env["line"]() = env::Value("line", std::to_string(scope.second));
+		return *this;
 	}
 };
 

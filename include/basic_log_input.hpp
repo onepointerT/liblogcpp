@@ -30,8 +30,6 @@
 
 #include "config.hpp"
 
-#include "basic_log.hpp"
-
 
 #include <iostream>
 #include <map>
@@ -56,19 +54,23 @@ public:
 
 
 class input_query
-    :   public std::vector< std::string >
+    :   public std::map< const std::string, std::string >
 {
 public:
-    typedef std::vector< std::string > list_t;
+    typedef std::map< const std::string, std::string > list_t;
     typedef list_t::allocator_type allocator_t;
     
 protected:
-    std::vector< std::string > m_input_queries;
+    std::map< const std::string, std::string > m_input_queries;
     
 public:
+    input_query() noexcept = default;
     input_query( const allocator_t alloc ) noexcept;
 };
 
+
+// Forward-declaration
+class basic_log;
 
 /**
  * @brief The basic input logging object
@@ -79,12 +81,14 @@ public:
     typedef std::string input_t;
     typedef std::pair< input_flag_t, input_t > input_resource_t;
     typedef std::map< input_flag_t, input_t > input_collection_t;
+    typedef input_query input_query_t;
 
 protected:
     basic_log& log;
     input_flag_t input_flag;
     input_t input_str;
     input_collection_t input_collection;
+    input_query_t input_queries;
     
     void set_input_flag( const input_flag_t iflag );
     
@@ -118,6 +122,19 @@ public:
      */
     const input_t get_input_current() const;
     
+    /**
+     * @brief Add an query
+     */
+    basic_log_input& operator[]( std::pair<std::string, std::string> key_and_query );
+
+    /**
+     * @brief Select a query
+     * @param query_name The name of the query, i.e. its key to select for example for
+     *      user input.
+     * @returns A reference to *this
+     */
+    basic_log_input& operator|( const std::string query_name );
+
 	/**
 	 * @brief Insert some function into this basic_log_input
 	 * @param f A function getting a basic_log_input and returning a basic_log_input
@@ -134,14 +151,14 @@ public:
 	 * @brief Insert some object into this basic_log_input
 	 * @param t Some object to log to this basic_log_input
 	 */
-    template< typename T >
+    /*template< typename T >
 	basic_log_input& operator>>(const T& t) {
         if ( ! log.is_new_record() ) {
             log.end_record();
         }
 		log.log<T>(t);
 		return *this;
-	}
+	}*/
 	
 	/**
      * @brief Save the current input to the input collection, clear the input variables and end the log output record

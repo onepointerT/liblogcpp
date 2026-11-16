@@ -28,6 +28,7 @@
 
 #include "basic_log_input.hpp"
 
+#include "basic_log.hpp"
 
 
 namespace logcpp {
@@ -45,7 +46,7 @@ const std::string input_flag::operator()() const {
 
 
 input_query::input_query( const input_query::allocator_t alloc ) noexcept
-    :   std::vector< std::string >( alloc )
+    :   std::map< const std::string, std::string >()
 {}
 
 
@@ -139,8 +140,8 @@ basic_log_input::input_collection_t  basic_log_input::query_input_values( const 
 
     clear();
 
-    for ( size_t i = 0; i < iquery.size(); i++ ) {
-        std::string iflag = iquery.at( i );
+    for ( typename input_query::const_iterator iqry : { iquery.cbegin(), iquery.cend() } ) {
+        std::string iflag = iqry->second;
 
         log << iflag << " [] ~> ";
         log.flush();
