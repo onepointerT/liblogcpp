@@ -75,7 +75,7 @@ public:
 				> RegexDefinitionT;
 	
 	template< class logger_t >
-	using LogInput = std::pair< std::string, logger_t >;
+	using LogInput = std::pair< std::string, std::shared_ptr<logger_t> >;
 
 
 	LogFormat& operator ^( const char* fmt_vars_str );
@@ -86,8 +86,8 @@ public:
 	) const;
 
 	template< class logger_t >
-	const LogFormat& operator |( const LogInput<logger_t> input ) const {
-		std::string s_fmt = this->formatAndReplace(input.second.env, this->fmt);
+	const std::string& operator |( const LogInput<logger_t> input ) const {
+		std::string s_fmt = this->formatAndReplace(input.second->env, this->fmt);
 		
 		std::string s = s_fmt;
 		size_t pos = 0UL;
@@ -105,17 +105,15 @@ public:
 		}
 
 		pos = 0UL;
-		while ( pos = s.find_first_of( "$#f", pos ) != s.npos ) { s = s.replace( pos, 3, input.second.env["file"].value ); }
+		while ( pos = s.find_first_of( "$#f", pos ) != s.npos ) { s = s.replace( pos, 3, input.second->env["file"].value ); }
 		pos = 0UL;
-		while ( pos = s.find_first_of( "$#c", pos ) != s.npos ) { s = s.replace( pos, 3, input.second.env["column"].value ); }
+		while ( pos = s.find_first_of( "$#c", pos ) != s.npos ) { s = s.replace( pos, 3, input.second->env["column"].value ); }
 		pos = 0UL;
-		while ( pos = s.find_first_of( "$#fn", pos ) != s.npos ) { s = s.replace( pos, 4, input.second.env["func"].value ); }
+		while ( pos = s.find_first_of( "$#fn", pos ) != s.npos ) { s = s.replace( pos, 4, input.second->env["func"].value ); }
 		pos = 0UL;
-		while ( pos = s.find_first_of( "$#l", pos ) != s.npos ) { s = s.replace( pos, 3, input.second.env["line"].value ); }
+		while ( pos = s.find_first_of( "$#l", pos ) != s.npos ) { s = s.replace( pos, 3, input.second->env["line"].value ); }
 
-		input.second << s;
-
-		return *this;
+		return *new std::string( s );
 	}
 };
 

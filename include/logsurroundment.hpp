@@ -1,6 +1,6 @@
 /**
  * @file logsurroundment.hpp
- * @brief This file enables assertion functions for LibLogC++
+ * @brief Represent the before and the behind the message of a log record
  * @author Sebastian Lau <lauseb644 [at] gmail [dot] com>
  **/
 /*
@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include "logenv.hpp"
 #include "logformat.hpp"
 
 #include <string>
@@ -40,14 +41,21 @@ class LogSurroundment {
 public:
 	LogFormat& before;
 	LogFormat& behind;
+	LogFormat& post;
+	LogFormat& srcloc;
+	env::LogEnvironment& env;
 
 	LogSurroundment();
 
-	LogSurroundment& operator ^( const char* fmt );
-	LogSurroundment& operator ^( const LogFormat::RegexDefinitionT lrgx );
+	const std::string operator ^( const std::string msg );
+	const std::string operator ^( const SourceLocation srcl );
 
 	template< class logger_t >
-	LogSurroundment& operator |( const LogFormat::LogInput<logger_t> input ) const;
+	std::string operator |( const LogFormat::LogInput<logger_t> input ) const {
+		return this->before.formatAndReplace( input.second.env, this->before.fmt )
+				+ this->post.formatAndReplace( input.second.env, input.first )
+				+ this->behind.formatAndReplace( input.second.env, this->behind.fmt );
+	}
 };
 
 

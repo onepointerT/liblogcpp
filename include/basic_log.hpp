@@ -119,7 +119,10 @@ public:
 	 * @param val 
 	 * @return basic_log& 
 	 */
-	basic_log& operator |( const env::Value val );
+	basic_log& operator |( const env::Value val ) {
+		this->env[val.name]() = val;
+		return *this;
+	}
 	
 	/**
 	 * @brief Insert an message into the formatted logstream.
@@ -127,20 +130,34 @@ public:
 	 * @param msg 
 	 * @return basic_log& 
 	 */
-	basic_log& operator ^( const std::string msg );
+	basic_log& operator ^( const std::string msg ) {
+		this->log<std::string>( this->surroundment.before.formatAndReplace(this->env, this->surroundment.before.fmt) );
+		this->log<std::string>( this->logfmt.formatAndReplace( this->env, msg ) );
+		this->log<std::string>( this->surroundment.behind.formatAndReplace(this->env, this->surroundment.behind.fmt) );
+		return *this;
+	}
 
 	/**
 	 * @brief Format the current record with the prefix or the behind.
 	 * 
 	 */
-	basic_log& operator =( const std::string msg );
+	basic_log& operator =( const LogFormat& fmt ) {
+		std::string sbuf = this->stream.get_buf();
+		const std::string s = (fmt | LogFormat::LogInput<basic_log>{ sbuf, std::shared_ptr<basic_log>(this) });
+		this->stream.clear_buf();
+		this->stream << s;
+		return *this;
+	}
 
 	/**
 	 * @brief Insert the current position of the source code and gather the information
 	 * 		about the source location.
 	 * 
 	 */
-	basic_log& operator <( const SourceLocation srcloc );
+	basic_log& operator <( const SourceLocation srcloc ) {
+		*this << (this->surroundment ^ srcloc);
+		return *this;
+	}
 	
 
 	/**
@@ -221,9 +238,12 @@ public:
 
 	{
 		m_color_ok = stream.sink_is_terminal();
+		this->surroundment.env = this->env;
 	}
 #else
-	{}
+	{
+		this->surroundment.env = this->env;
+	}
 #endif
 	basic_log( const basic_log& ) = delete;
 	~basic_log() {}
