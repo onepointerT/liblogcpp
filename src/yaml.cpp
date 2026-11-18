@@ -111,27 +111,130 @@ yaml_document_t& YamlDocument::initdoc( yaml_tag_directive_t* tag_directives_sta
 }
 
 
+int YamlDocument::_callback_onEvent( yaml_parser_t* parser, yaml_event_t* event ) {
+
+	if ( parser == NULL || event == NULL ) return 0;
+
+	env::Value* yval = nullptr;
+	YamlNode* ynode = nullptr;
+
+	yaml_event_type_t type;
+	type = event->type;
+
+	if (type == YAML_NO_EVENT)
+		printf("???\n");
+	else if (type == YAML_STREAM_START_EVENT)
+		printf("+STR\n");
+	else if (type == YAML_STREAM_END_EVENT)
+		printf("-STR\n");
+	else if (type == YAML_DOCUMENT_START_EVENT) {
+		printf("+DOC");
+		if (!event->data.document_start.implicit)
+			printf(" ---");
+		printf("\n");
+	}
+	else if (type == YAML_DOCUMENT_END_EVENT) {
+		printf("-DOC");
+		if (!event->data.document_end.implicit)
+			printf(" ...");
+		printf("\n");
+	}
+	else if (type == YAML_MAPPING_START_EVENT) {
+		printf("+MAP");
+		if (event->data.mapping_start.anchor)
+			printf(" &%s", event->data.mapping_start.anchor);
+		if (event->data.mapping_start.tag)
+			printf(" <%s>", event->data.mapping_start.tag);
+		printf("\n");
+	}
+	else if (type == YAML_MAPPING_END_EVENT)
+		printf("-MAP\n");
+	else if (type == YAML_SEQUENCE_START_EVENT) {
+		printf("+SEQ");
+		if (event->data.sequence_start.anchor)
+			printf(" &%s", event->data.sequence_start.anchor);
+		if (event->data.sequence_start.tag)
+			printf(" <%s>", event->data.sequence_start.tag);
+		printf("\n");
+	}
+	else if (type == YAML_SEQUENCE_END_EVENT)
+		printf("-SEQ\n");
+	else if (type == YAML_SCALAR_EVENT) {
+		printf("=VAL");
+		if (event->data.scalar.anchor)
+			printf(" &%s", event->data.scalar.anchor);
+		if (event->data.scalar.tag)
+			printf(" <%s>", event->data.scalar.tag);
+		switch (event->data.scalar.style) {
+		case YAML_PLAIN_SCALAR_STYLE:
+			printf(" :");
+			break;
+		case YAML_SINGLE_QUOTED_SCALAR_STYLE:
+			printf(" '");
+			break;
+		case YAML_DOUBLE_QUOTED_SCALAR_STYLE:
+			printf(" \"");
+			break;
+		case YAML_LITERAL_SCALAR_STYLE:
+			printf(" |");
+			break;
+		case YAML_FOLDED_SCALAR_STYLE:
+			printf(" >");
+			break;
+		case YAML_ANY_SCALAR_STYLE:
+			abort();
+		}
+//		print_escaped(event->data.scalar.value, event->data.scalar.length);
+		printf("\n");
+	}
+	else if (type == YAML_ALIAS_EVENT)
+		printf("=ALI *%s\n", event->data.alias.anchor);
+	else
+		abort();
+
+	yaml_event_delete(event);
+
+	if (type == YAML_STREAM_END_EVENT)
+		return 0;
+	
+	if ( ynode == nullptr )
+		return 0;
+	else YamlDocument::newNodes.emplace( ynode );
+	
+	if (!yaml_parser_parse(parser, event)) {
+		fprintf(stderr, "Parse error: %s\n", parser->problem);
+		return 0;
+	}
+
+	return 1;
+}
+
+
 unsigned int YamlDocument::readdoc( const std::string docdata, YamlDocument& ydoc ) {
+	if (!yaml_parser_initialize(&ydoc.parser)) {
+        return 0;
+    }
+	
 	yaml_parser_set_input_string( &ydoc.parser, (unsigned char*) docdata.c_str(), docdata.length() );
-	yaml_tag_directive_t* ytd_start = new yaml_tag_directive_t();
-	yaml_tag_directive_t* ytd_end = new yaml_tag_directive_t();
-	yaml_document_start_event_initialize( &ydoc.event, yaml_version, ytd_start, ytd_end, 0 );
-	yaml_parser_set_input_string( &ydoc.parser, (unsigned char*) docdata.c_str(), docdata.length() );
 
-	yaml_char_t* yc = NULL;
-	yaml_char_t* yanchor = NULL;
-	yaml_char_t* ytag = NULL;
-	yaml_char_t* yvalue = NULL;
-	int ylength = 0;
-	yaml_alias_event_initialize( &ydoc.event, yc );
-	yaml_scalar_event_initialize( &ydoc.event, yanchor, ytag, yvalue, ylength, 0, 0, LIBYAML_SCALAR_STYLE );
-	yaml_document_start_event_initialize( &ydoc.event, yaml_version, ytd_start, ytd_end, 0 );
-	yaml_document_end_event_initialize( &ydoc.event, 0 );
+	yaml_stream_callback_register( &ydoc.parser, &ydoc.event, &YamlDocument::_callback_onEvent );
 
-	//yaml_p
-	yaml_parser_parse( &ydoc.parser, &ydoc.event );
+	unsigned int nfound = 0;
+	while ( ydoc.event.type != YAML_STREAM_END_EVENT ) {
+		yaml_parser_parse( &ydoc.parser, &ydoc.event );
 
-	//yaml_do
+		if ( YamlDocument::newNodes.size() > 0 ) {
+			while ( YamlDocument::newNodes.size() != 0 ) {
+				YamlNode* no = YamlDocument::newNodes.front();
+				*this << *no;
+				YamlDocument::newNodes.pop();
+			}
+		}
+
+		++nfound;
+	}
+
+	return nfound;
 }
 
 

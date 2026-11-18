@@ -32,6 +32,7 @@
 #include <initializer_list>
 #include <list>
 #include <map>
+#include <queue>
 #include <string>
 
 extern "C" {
@@ -97,9 +98,12 @@ public:
     env::Value& toEnvValue() const;
 };
 
-class YamlDocument
+class YamlDocument final
     :   public std::map< std::string, YamlNode* >
 {
+private:
+    static std::queue< YamlNode* >& newNodes;
+
 protected:
     std::string str_docdata;
 
@@ -118,6 +122,7 @@ public:
     YamlDocument( const std::string docdata );
 
     YamlDocument& operator<<( const env::Value& val );
+    YamlDocument& operator<<( const YamlNode& nd );
 
     yaml_parser_t& parser;
     yaml_event_t& event;
@@ -128,7 +133,9 @@ public:
                                         = new yaml_tag_directive_t{ .handle = NULL, .prefix = NULL }
     );
 
-    static unsigned int readdoc( const std::string docdata, YamlDocument& ydoc );
+    static int _callback_onEvent( yaml_parser_t* parser, yaml_event_t* event );
+
+    unsigned int readdoc( const std::string docdata, YamlDocument& ydoc );
 
     static unsigned int savedoc( const yaml_document_t& document );
 
