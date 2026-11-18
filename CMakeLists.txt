@@ -15,24 +15,59 @@ set ( PROJECT_DESCRIPTION "An intuitive and highly customizable LGPL library for
 set( CMAKE_CXX_STANDARD 23 )
 
 
+option( BUILD_LOGCPP_TEST "Build the test executables for logcpp." OFF )
+option( BUILD_WITH_YAML_SUPPORT "Build with support for yaml, this means \
+									you can serialize log input and/or pre-define \
+									your queries and messages dynamically to and from *.yaml files." ON )
+option( BUILD_WITH_COLOR_SUPPORT "Enable color support for logcpp." ON )
+option( LEAVE_SCOPE_DIR_PREFIX "Let paths not to be abbreviated" OFF )
+
+if( NOT DEFINED BUILD_WITH_YAML_SUPPORT )
+	set( BUILD_WITH_YAML_SUPPORT ON )
+	add_definitions( -fpermissive )
+endif()
+if( NOT DEFINED BUILD_WITH_COLOR_SUPPORT )
+	set( BUILD_WITH_COLOR_SUPPORT ON )
+endif()
+
+if ( BUILD_WITH_COLOR_SUPPORT EQUAL ON )
+	add_definitions( -DLOGCPP_ENABLE_COLOR_SUPPORT=1 )
+endif()
+if ( BUILD_WITH_YAML_SUPPORT )
+	add_compile_definitions( LOGCPP_YAML_SUPPORT )
+endif()
+if ( LEAVE_SCOPE_DIR_PREFIX EQUAL ON )
+	add_definitions( -DLOGCPP_LEAVE_SCOPE_DIRS_PREFIX=1 )
+endif()
+
 if( LOGCPP_DESTDIR )
 else()
 	set( LOGCPP_DESTDIR "${CMAKE_INSTALL_PREFIX}" )
 endif()
+
+
+if ( BUILD_WITH_YAML_SUPPORT )
+	include_directories( lib/libyaml/include )
+	add_subdirectory( lib/libyaml )
+endif()
+
+
 
 file (GLOB LIBLOGCPP_HEADERS ${PROJECT_SOURCE_DIR}/include/*.hpp )
 file (GLOB LIBLOGCPP_SOURCE ${PROJECT_SOURCE_DIR}/src/*.cpp )
 include_directories( ${PROJECT_SOURCE_DIR}/include )
 
 
-if( LOGCPP_SHARED )
+if( LOGCPP_SHARED EQUAL ON )
 	add_library( logcpp SHARED ${LIBLOGCPP_SOURCE} )
 else()
 	add_library( logcpp STATIC ${LIBLOGCPP_SOURCE} )
 endif()
+if ( BUILD_WITH_YAML_SUPPORT EQUAL ON )
+	target_link_libraries( logcpp yaml )
+endif()
 
-
-if( BUILD_LOGCPP_TEST )
+if( BUILD_LOGCPP_TEST EQUAL ON )
     # Instruct CMake not to run moc automatically when needed.
 	# set(CMAKE_AUTOMOC OFF)
 	# Find the QtCore library

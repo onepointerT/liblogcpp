@@ -36,6 +36,9 @@
 #include <utility>
 #include <vector>
 
+#ifdef LOGCPP_YAML_SUPPORT
+#include "yaml.hpp"
+#endif
 
 
 

@@ -1,0 +1,10 @@
+items:
+  - uid: U001
+    uname: sl
+    role: library_developer
+    favorite_kernel: -rt
+  
+  - uid: BC01
+    uname: business_client
+    role: customer
+    favorite_kernel: -MANJARO

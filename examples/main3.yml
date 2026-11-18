@@ -1,0 +1,52 @@
+--- # You may configure the formatters of LibLogC++
+stdlog:
+  - before: "[$#f:$#l @ $#fn] -- "
+  - behind: " --"
+  - post: "${column} :- "
+  - autoformat: [false]
+  - survey_mode: false
+survey_log:
+  - before: "[$#f:$#l @ $#fn] -- "
+  - behind: " --"
+  - post: "${column} :- "
+  - autoformat: false 
+  - survey_mode: false
+
+--- # You may have an opener and an closer message for your program
+    # in an logging config file instead of have it hard coded in the
+    # program.
+preamble: "${stdlog.before} .|. ${stdlog.behind}"
+
+welcome: |
+  Welcome to ${program_name}, version ${program_version}.
+  The program aims to be usable under the terms of ${license_name}
+  and does:
+
+  ${program_description}
+
+prolog: "|> Please enter a user name for more information, insights and actions."
+
+epilog: >
+  Thank you for using ${program_name}, version ${program_version}.
+
+
+--- # You can optionally configure additional global formats for log entries
+    # If empty, the configuration option is ignored
+output:
+  ["output_on", "newline_flush", "chars_per_entry", "endrecord_on", "post_before_input"]:
+      ["<<", "|<", "", "<|", true]
+
+--- # Optionaly you can configure the input and also
+input:  
+  ["input_on", "chars_pre", "logfile", "chars_following", "format", "choices"]:
+      [ ">>", "|>", "${inputlog}", ">"
+      , "${chars_pre}${input_query}${chars_following}#{input_query.name}>>"
+      , "${chars_pre}${input_query}${chars_following}: [${chooce}]#{input_query.name}>>"
+      ]
+
+input_queries:
+  - choose: Please enter what to choose
+  - add: Add a user
+
+
+

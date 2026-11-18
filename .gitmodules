@@ -1,0 +1,4 @@
+[submodule "lib/libyaml"]
+	path = lib/libyaml
+	url = https://github.com/yaml/libyaml.git
+	branch = callback_handlers
