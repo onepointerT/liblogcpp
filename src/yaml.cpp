@@ -28,6 +28,8 @@
 
 #include "yaml.hpp"
 
+#include "logenv.hpp"
+
 #include <fstream>
 
 namespace logcpp {
@@ -35,43 +37,77 @@ namespace yaml {
 
 
 YamlNode::YamlNode( const yaml_node_t& yc_node )
-	:	node( *new yaml_node_pair_t{ .key = (int) std::stoi(*new std::string((char*) yc_node.tag), 0, 8)
+	:	node( *new ::yaml_node_pair_t{ .key = (int) std::stoi(*new std::string((char*) yc_node.tag), 0, 8)
 								   , .value = (int) std::stoi(*new std::string((char*) yc_node.data.scalar.value), 0, 8)
 		} )
-	,	yaml( new yaml_node_t(yc_node) )
+	,	yaml( new ::yaml_node_t(yc_node) )
 	,	children()
 {}
 
 YamlNode::YamlNode( const yaml_node_pair_t* yc_node_pair )
-	:	node( (yc_node_pair != nullptr ? *new yaml_node_pair_t(*yc_node_pair) 
-									  : *new yaml_node_pair_t{ .key = 0, .value = 0 }
+	:	node( (yc_node_pair != nullptr ? *new ::yaml_node_pair_t(*yc_node_pair) 
+									  : *new ::yaml_node_pair_t{ .key = 0, .value = 0 }
 		) )
-	,	yaml( new yaml_node_t{   .tag = (yaml_char_t*) ((unsigned char*) yc_node_pair->key)
-							   , .data = { .scalar = { .value = (yaml_char_t*) ((unsigned char*) yc_node_pair->value) } }
-//							   , .type = yaml_node_type_t::YAML_SCALAR_NODE
+	,	yaml( new ::yaml_node_t{   .tag = (yaml_char_t*) ((unsigned char*) ((char*) yc_node_pair->key))
+							   , .data = { .scalar = { 
+												.value = (yaml_char_t*) ((unsigned char*) ((char*) yc_node_pair->value)),
+												.length = strlen((char*) this->yaml->data.scalar.value),
+												.style = LIBYAML_SCALAR_STYLE
+											} }
+//							   , .type = ::yaml_node_type_e::YAML_SCALAR_NODE
 		} )
 	,	children()
 {}
 
 YamlNode::YamlNode( const std::string name, const std::string value )
-	:	node( *new yaml_node_pair_t{ .key = (int) std::stoi(name, 0, 8)
+	:	node( *new ::yaml_node_pair_t{ .key = (int) std::stoi(name, 0, 8)
 								   , .value = (int) std::stoi(value, 0, 8)
 		} )
-	,	yaml( new yaml_node_t{   .tag = (yaml_char_t*) ((unsigned char*) name.c_str())
-							   , .data = { .scalar = { .value = (yaml_char_t*) ((unsigned char*) value.c_str()) }}
-//							   , .type = yaml_node_type_t::YAML_SCALAR_NODE
+	,	yaml( new ::yaml_node_t{   .tag = (yaml_char_t*) ((unsigned char*) name.c_str())
+							   , .data = { .scalar = { 
+												.value = (yaml_char_t*) ((unsigned char*) value.c_str()),
+												.length = strlen((char*) this->yaml->data.scalar.value),
+												.style = LIBYAML_SCALAR_STYLE
+											} }
+//							   , .type = ::yaml_node_type_t::YAML_SCALAR_NODE
 		} )
 	,	children()	
 {}
 
+yaml_node_t& setNode( const yaml_node_pair_t& nd, yaml_node_t* node ) {
+	if ( node == nullptr ) {
+		node = new yaml_node_t{};
+		node->type = yaml_node_type_t::YAML_SCALAR_NODE;
+	}
+
+	node->tag = (unsigned char*) ((char*) nd.key);
+	node->data.scalar.value = (unsigned char*) ((char*) nd.value);
+	node->data.scalar.length = strlen((char*) node->data.scalar.value);
+	node->data.scalar.style = LIBYAML_SCALAR_STYLE;
+
+	return *node;
+}
+
 void YamlNode::setKey( const std::string key ) {
 	this->node.key = (int) std::stoi(key, 0, 8);
-	this->yaml->tag = (yaml_char_t*) ((unsigned char*) key.c_str());
+	this->yaml = &( YamlNode::setNode(this->node, this->yaml) );
 }
 
 void YamlNode::setValue( const std::string value ) {
 	this->node.value = (int) std::stoi(value, 0, 8);
-	this->yaml->data.scalar.value = (yaml_char_t*) ((unsigned char*) value.c_str());
+	this->yaml = &( YamlNode::setNode(this->node, this->yaml) );
+}
+
+const std::string YamlNode::getKey() const {
+	return (char*) ((unsigned char*) ((char*) this->node.key));
+}
+
+const std::string YamlNode::getValue() const {
+	return (char*) ((unsigned char*) ((char*) this->node.value));
+}
+
+env::Value& YamlNode::toEnvValue() const {
+	return *new env::Value( this->getKey(), this->getValue() );
 }
 
 
@@ -95,30 +131,36 @@ YamlDocument::YamlDocument( const std::string docdata )
 	,	doc( &(YamlDocument::initdoc()) )
 	,	root_node( nullptr )
 	,	parser( yaml::yaml_parser )
-	,	event( *new yaml_event_t{ .type = YAML_NO_EVENT } )
+	,	event( *new ::yaml_event_t{ .type = YAML_NO_EVENT } )
+	,	emitter( *new ::yaml_emitter_t{ .encoding = LIBYAML_ENCODING
+									, .line_break = LIBYAML_LINEBREAK_STYLE
+									, .document = this->doc
+							} )
 {
+	::yaml_emitter_initialize( &this->emitter );
 	YamlDocument::readdoc( this->docdata(), *this );
+	this->root_node = new YamlNode( *::yaml_document_get_root_node( this->doc ) );
 }
 
 
 
-yaml_document_t& YamlDocument::initdoc( yaml_tag_directive_t* tag_directives_start
-									  , yaml_tag_directive_t* tag_directives_end )
+yaml_document_t& YamlDocument::initdoc( ::yaml_tag_directive_t* tag_directives_start
+									  , ::yaml_tag_directive_t* tag_directives_end )
 {
-	yaml_document_t& ydoc = *new yaml_document_t();
-	yaml_document_initialize( &ydoc, yaml_version, tag_directives_start, tag_directives_end, 0, 0 );
+	::yaml_document_t& ydoc = *new ::yaml_document_t();
+	::yaml_document_initialize( &ydoc, yaml_version, tag_directives_start, tag_directives_end, 0, 0 );
 	return ydoc;
 }
 
 
-int YamlDocument::_callback_onEvent( yaml_parser_t* parser, yaml_event_t* event ) {
+int YamlDocument::_callback_onEvent( ::yaml_parser_t* parser, ::yaml_event_t* event ) {
 
 	if ( parser == NULL || event == NULL ) return 0;
 
 	env::Value* yval = nullptr;
 	YamlNode* ynode = nullptr;
 
-	yaml_event_type_t type;
+	::yaml_event_type_t type;
 	type = event->type;
 
 	if (type == YAML_NO_EVENT)
@@ -192,16 +234,16 @@ int YamlDocument::_callback_onEvent( yaml_parser_t* parser, yaml_event_t* event 
 	else
 		abort();
 
-	yaml_event_delete(event);
+//	yaml_event_delete(event);
 
 	if (type == YAML_STREAM_END_EVENT)
-		return 0;
+		return 1;
 	
 	if ( ynode == nullptr )
 		return 0;
 	else YamlDocument::newNodes.emplace( ynode );
 	
-	if (!yaml_parser_parse(parser, event)) {
+	if (!::yaml_parser_parse(parser, event)) {
 		fprintf(stderr, "Parse error: %s\n", parser->problem);
 		return 0;
 	}
@@ -211,17 +253,17 @@ int YamlDocument::_callback_onEvent( yaml_parser_t* parser, yaml_event_t* event 
 
 
 unsigned int YamlDocument::readdoc( const std::string docdata, YamlDocument& ydoc ) {
-	if (!yaml_parser_initialize(&ydoc.parser)) {
+	if (!::yaml_parser_initialize(&ydoc.parser)) {
         return 0;
     }
 	
-	yaml_parser_set_input_string( &ydoc.parser, (unsigned char*) docdata.c_str(), docdata.length() );
+	::yaml_parser_set_input_string( &ydoc.parser, (unsigned char*) docdata.c_str(), docdata.length() );
 
-	yaml_stream_callback_register( &ydoc.parser, &ydoc.event, &YamlDocument::_callback_onEvent );
+	::yaml_stream_callback_register( &YamlDocument::_callback_onEvent );
 
 	unsigned int nfound = 0;
 	while ( ydoc.event.type != YAML_STREAM_END_EVENT ) {
-		yaml_parser_parse( &ydoc.parser, &ydoc.event );
+		::yaml_parser_parse( &ydoc.parser, &ydoc.event );
 
 		if ( YamlDocument::newNodes.size() > 0 ) {
 			while ( YamlDocument::newNodes.size() != 0 ) {
@@ -238,7 +280,7 @@ unsigned int YamlDocument::readdoc( const std::string docdata, YamlDocument& ydo
 }
 
 
-unsigned int YamlDocument::savedoc( const yaml_document_t& document ) {
+unsigned int YamlDocument::savedoc( const ::yaml_document_t& document ) {
 
 }
 

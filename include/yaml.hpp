@@ -40,13 +40,13 @@ extern "C" {
 }
 
 
-#define LIBYAML_SCALAR_STYLE YAML_ANY_SCALAR_STYLE
-#define LIBYAML_SEQUENCE_STYLE YAML_ANY_SEQUENCE_STYLE
-#define LIBYAML_MAPPING_STYLE YAML_ANY_MAPPING_STYLE
-#define LIBYAML_ENCODING YAML_UTF8_ENCODING
-#define LIBYAML_LINEBREAK_STYLE YAML_LN_BREAK
-#define LIBYAML_DEFAULT_NODE_TYPE YAML_SCALAR_NODE
-#define LIBYAML_DEFAULT_EVENT_TYPE YAML_NO_EVENT
+#define LIBYAML_SCALAR_STYLE ::yaml_scalar_style_t::YAML_ANY_SCALAR_STYLE
+#define LIBYAML_SEQUENCE_STYLE ::yaml_sequence_style_t::YAML_ANY_SEQUENCE_STYLE
+#define LIBYAML_MAPPING_STYLE ::yaml_mapping_style_t::YAML_ANY_MAPPING_STYLE
+#define LIBYAML_ENCODING ::yaml_encoding_t::YAML_UTF8_ENCODING
+#define LIBYAML_LINEBREAK_STYLE ::yaml_break_t::YAML_LN_BREAK
+#define LIBYAML_DEFAULT_NODE_TYPE ::yaml_node_type_t::YAML_SCALAR_NODE
+#define LIBYAML_DEFAULT_EVENT_TYPE ::yaml_event_type_t::YAML_NO_EVENT
 
 
 #define LIBYAML_VERSION_STRING std::string(yaml_get_version_string())
@@ -59,41 +59,55 @@ extern "C" {
                                         - LIBYAML_VERSION_STRING.find_first_of('.') + 1\
                                     ))
 
+
 namespace logcpp {
 
 // Forward-declaration
 namespace env {
+class LogEnvironment;
 class Value;
 } // namespace
 
 namespace yaml {
 
-inline static yaml_parser_t& yaml_parser
-        = *new yaml_parser_t{ .encoding = LIBYAML_ENCODING };
+inline static ::yaml_parser_t& yaml_parser
+        = *new ::yaml_parser_t{ .encoding = LIBYAML_ENCODING };
 #define LIBYAML_PARSER yaml_parser
 
-inline static yaml_version_directive_t* yaml_version
-        = new yaml_version_directive_t{ .major = LIBYAML_VERSION_MAJOR
-                                      , .minor = LIBYAML_VERSION_MINOR
+inline static ::yaml_version_directive_t* yaml_version
+        = new ::yaml_version_directive_t{ .major = LIBYAML_VERSION_MAJOR
+                                        , .minor = LIBYAML_VERSION_MINOR
                     };
 
 class YamlNode
 {
 public:
-    const static yaml_scalar_style_t yaml_scalars = LIBYAML_SCALAR_STYLE;
-    const static yaml_sequence_style_t yaml_sequences = LIBYAML_SEQUENCE_STYLE;
-    const static yaml_mapping_style_t yaml_mappings = LIBYAML_MAPPING_STYLE;
+    const static ::yaml_scalar_style_t yaml_scalars = LIBYAML_SCALAR_STYLE;
+    const static ::yaml_sequence_style_t yaml_sequences = LIBYAML_SEQUENCE_STYLE;
+    const static ::yaml_mapping_style_t yaml_mappings = LIBYAML_MAPPING_STYLE;
 
-    yaml_node_pair_t& node;
-    yaml_node_t* yaml;
+    ::yaml_node_pair_t& node;
+    ::yaml_node_t* yaml;
     std::list< YamlNode* > children;
 
-    YamlNode( const yaml_node_t& yc_node );
-    YamlNode( const yaml_node_pair_t* yc_node_pair = nullptr );
+    YamlNode( const ::yaml_node_t& yc_node );
+    YamlNode( const ::yaml_node_pair_t* yc_node_pair = nullptr );
     YamlNode( const std::string name, const std::string value );
+
+    YamlNode& operator<<( const YamlNode& nd );
+    YamlNode& operator<<( const env::Value& nd );
+    YamlNode& operator<<( const env::LogEnvironment& lenv );
+    YamlNode& operator<<( const ::yaml_node_pair_t& ndp );
+
+    static ::yaml_node_t& setNode( const ::yaml_node_pair_t& nd
+                               , ::yaml_node_t* node
+    );
 
     void setKey( const std::string key = "" );
     void setValue( const std::string value = "" );
+
+    const std::string getKey() const;
+    const std::string getValue() const;
 
     env::Value& toEnvValue() const;
 };
@@ -103,17 +117,18 @@ class YamlDocument final
 {
 private:
     static std::queue< YamlNode* >& newNodes;
+    static bool newNodesSemaphoreLocked;
 
 protected:
     std::string str_docdata;
 
 public:
-    const static yaml_encoding_t yaml_encoding = LIBYAML_ENCODING;
-    const static yaml_break_t yaml_newline = LIBYAML_LINEBREAK_STYLE;
+    const static ::yaml_encoding_t yaml_encoding = LIBYAML_ENCODING;
+    const static ::yaml_break_t yaml_newline = LIBYAML_LINEBREAK_STYLE;
 
     const std::string docdata() const;
     
-    yaml_document_t* doc;
+    ::yaml_document_t* doc;
     YamlNode* root_node;
 
     unsigned int toMap();
@@ -124,20 +139,22 @@ public:
     YamlDocument& operator<<( const env::Value& val );
     YamlDocument& operator<<( const YamlNode& nd );
 
-    yaml_parser_t& parser;
-    yaml_event_t& event;
+    ::yaml_parser_t& parser;
+    ::yaml_event_t& event;
+    ::yaml_emitter_t& emitter;
 
-    static yaml_document_t& initdoc( yaml_tag_directive_t* tag_directives_start
-                                        = new yaml_tag_directive_t{ .handle = NULL, .prefix = NULL }
-                                   , yaml_tag_directive_t* tag_directives_end
-                                        = new yaml_tag_directive_t{ .handle = NULL, .prefix = NULL }
+    static ::yaml_document_t& initdoc( ::yaml_tag_directive_t* tag_directives_start
+                                        = new ::yaml_tag_directive_t{ .handle = NULL, .prefix = NULL }
+                                   , ::yaml_tag_directive_t* tag_directives_end
+                                        = new ::yaml_tag_directive_t{ .handle = NULL, .prefix = NULL }
     );
 
-    static int _callback_onEvent( yaml_parser_t* parser, yaml_event_t* event );
+    static int _callback_onEvent( ::yaml_parser_t* parser, ::yaml_event_t* event );
+    static int _callback_onNodeNew( ::yaml_node_t* nd );
 
     unsigned int readdoc( const std::string docdata, YamlDocument& ydoc );
 
-    static unsigned int savedoc( const yaml_document_t& document );
+    static unsigned int savedoc( const ::yaml_document_t& document );
 
     void clear();
 };
@@ -146,7 +163,6 @@ public:
 
 class YamlFile {
 protected:
-    std::fstream& _fh;
     const std::string _openmode;
 
 public:
